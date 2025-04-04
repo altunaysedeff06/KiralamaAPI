@@ -1,0 +1,6 @@
+@KiralamaAPI_HostAddress = http://localhost:5063
+
+GET {{KiralamaAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
