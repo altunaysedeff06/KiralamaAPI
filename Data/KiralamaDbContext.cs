@@ -14,13 +14,21 @@ namespace KiralamaAPI.Data
 		public DbSet<Isletme> Isletmeler { get; set; }
 		public DbSet<Arac> Araclar { get; set; }
 		public DbSet<Kiralama> Kiralamalar { get; set; }
+		public DbSet<Bildirim> Bildirimler { get; set; }
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
 			base.OnModelCreating(modelBuilder);
 
-			// Kullanıcı e-posta alanının benzersiz olması için
-			modelBuilder.Entity<Kullanici>()
+
+			foreach (var relationship in modelBuilder.Model.GetEntityTypes()
+						 .SelectMany(e => e.GetForeignKeys()))
+			{
+				relationship.DeleteBehavior = DeleteBehavior.Restrict;
+			}
+
+				// Kullanıcı e-posta alanının benzersiz olması için
+				modelBuilder.Entity<Kullanici>()
 				.HasIndex(k => k.Eposta)
 				.IsUnique();
 
@@ -46,7 +54,7 @@ namespace KiralamaAPI.Data
 				.HasOne(k => k.Arac)
 				.WithMany()
 				.HasForeignKey(k => k.AracId)
-				.OnDelete(DeleteBehavior.Cascade);
+				.OnDelete(DeleteBehavior.Restrict);
 
 			// İşletme - Araç ilişkisi (1 İşletme, birden fazla araca sahip olabilir)
 			modelBuilder.Entity<Arac>()

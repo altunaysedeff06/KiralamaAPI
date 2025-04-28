@@ -12,6 +12,21 @@ namespace KiralamaAPI.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
+                name: "Bildirimler",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Message = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    DateSent = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    IsRead = table.Column<bool>(type: "bit", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Bildirimler", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Isletmeler",
                 columns: table => new
                 {
@@ -36,7 +51,8 @@ namespace KiralamaAPI.Migrations
                     Soyad = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     Eposta = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     SifreHash = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    KayitTarihi = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    KayitTarihi = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Rol = table.Column<string>(type: "nvarchar(max)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -55,7 +71,9 @@ namespace KiralamaAPI.Migrations
                     KonumEnlem = table.Column<double>(type: "float", nullable: false),
                     KonumBoylam = table.Column<double>(type: "float", nullable: false),
                     MusaitMi = table.Column<bool>(type: "bit", nullable: false),
-                    IsletmeId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
+                    IsletmeId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Kilitli = table.Column<bool>(type: "bit", nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -66,6 +84,12 @@ namespace KiralamaAPI.Migrations
                         principalTable: "Isletmeler",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Araclar_Kullanicilar_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Kullanicilar",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -88,7 +112,7 @@ namespace KiralamaAPI.Migrations
                         column: x => x.AracId,
                         principalTable: "Araclar",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Kiralamalar_Kullanicilar_KullaniciId",
                         column: x => x.KullaniciId,
@@ -107,6 +131,11 @@ namespace KiralamaAPI.Migrations
                 table: "Araclar",
                 column: "PlakaNumarasi",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Araclar_UserId",
+                table: "Araclar",
+                column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Isletmeler_Eposta",
@@ -135,16 +164,19 @@ namespace KiralamaAPI.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
+                name: "Bildirimler");
+
+            migrationBuilder.DropTable(
                 name: "Kiralamalar");
 
             migrationBuilder.DropTable(
                 name: "Araclar");
 
             migrationBuilder.DropTable(
-                name: "Kullanicilar");
+                name: "Isletmeler");
 
             migrationBuilder.DropTable(
-                name: "Isletmeler");
+                name: "Kullanicilar");
         }
     }
 }

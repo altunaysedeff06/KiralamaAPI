@@ -19,6 +19,11 @@ namespace KiralamaAPI.Service
 			_context = context;
 		}
 
+		public async Task<Kullanici?> ProfilGetirAsync(Guid kullaniciId)
+		{
+			return await _context.Kullanicilar.FindAsync(kullaniciId);
+		}
+
 		public async Task<Kullanici> KayitOl(Kullanici kullanici)
 		{
 			kullanici.SifreHash = HashSifre(kullanici.SifreHash);
@@ -50,6 +55,21 @@ namespace KiralamaAPI.Service
 			await _context.SaveChangesAsync();
 			return mevcut;
 		}
+
+		public async Task<bool> KullaniciGuncelleAsync(Kullanici kullanici)
+		{
+			var mevcutKullanici = await _context.Kullanicilar.FindAsync(kullanici.Id);
+			if (mevcutKullanici == null)
+				return false;
+
+			// Kullanıcının bilgilerini güncelle
+			mevcutKullanici.Rol = kullanici.Rol;  // Admin rolünü güncelliyoruz
+			_context.Kullanicilar.Update(mevcutKullanici);
+			await _context.SaveChangesAsync();
+
+			return true;
+		}
+
 
 		public async Task<bool> Sil(Guid id)
 		{

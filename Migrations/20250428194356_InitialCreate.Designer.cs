@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace KiralamaAPI.Migrations
 {
     [DbContext(typeof(KiralamaDbContext))]
-    [Migration("20250404001725_InitialCreate")]
+    [Migration("20250428194356_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -33,6 +33,9 @@ namespace KiralamaAPI.Migrations
 
                     b.Property<Guid>("IsletmeId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Kilitli")
+                        .HasColumnType("bit");
 
                     b.Property<double>("KonumBoylam")
                         .HasColumnType("float");
@@ -61,6 +64,9 @@ namespace KiralamaAPI.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
                     b.HasIndex("IsletmeId");
@@ -68,7 +74,33 @@ namespace KiralamaAPI.Migrations
                     b.HasIndex("PlakaNumarasi")
                         .IsUnique();
 
+                    b.HasIndex("UserId");
+
                     b.ToTable("Araclar");
+                });
+
+            modelBuilder.Entity("KiralamaAPI.Models.Bildirim", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("DateSent")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Bildirimler");
                 });
 
             modelBuilder.Entity("KiralamaAPI.Models.Isletme", b =>
@@ -158,6 +190,10 @@ namespace KiralamaAPI.Migrations
                     b.Property<DateTime>("KayitTarihi")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("Rol")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("SifreHash")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -183,7 +219,15 @@ namespace KiralamaAPI.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("KiralamaAPI.Models.Kullanici", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Isletme");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("KiralamaAPI.Models.Kiralama", b =>
@@ -191,7 +235,7 @@ namespace KiralamaAPI.Migrations
                     b.HasOne("KiralamaAPI.Models.Arac", "Arac")
                         .WithMany()
                         .HasForeignKey("AracId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("KiralamaAPI.Models.Kullanici", "Kullanici")

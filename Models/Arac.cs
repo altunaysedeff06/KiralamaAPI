@@ -27,5 +27,21 @@ namespace KiralamaAPI.Models
 		[ForeignKey("Isletme")]
 		public Guid IsletmeId { get; set; }
 		public Isletme Isletme { get; set; }
+		public bool Kilitli { get; set; }
+		public Guid UserId { get; set; } 
+
+		public Kullanici User { get; set; }
+		public void Kilitle()
+		{
+			Kilitli = true;
+			// Burada donanım ile entegre bir kilitleme işlemi yapılabilir
+		}
+
+		// Açma işlemi
+		public void Ac()
+		{
+			Kilitli = false;
+			// Burada donanım ile entegre bir açma işlemi yapılabilir
+		}
 	}
 }
