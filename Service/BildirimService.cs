@@ -33,7 +33,7 @@ namespace KiralamaAPI.Service
 			return await _context.Bildirimler
 				.Where(n => n.UserId == userId)
 				.OrderByDescending(n => n.DateSent)
-				.ToListAsync(); // Burada sadece veri getirme işlemi yapılır
+				.ToListAsync(); 
 		}
 	}
 }

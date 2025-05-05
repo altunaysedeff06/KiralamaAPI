@@ -18,9 +18,19 @@ namespace KiralamaAPI.Service
 
 		public async Task<Isletme> IsletmeEkle(Isletme isletme)
 		{
-			_context.Isletmeler.Add(isletme);
+			var yeniIsletme = new Isletme
+			{
+				Id = Guid.NewGuid(),
+				Ad = isletme.Ad,
+				Adres = isletme.Adres,
+				Eposta = isletme.Eposta,
+				SifreHash = isletme.SifreHash,
+				KayitTarihi = DateTime.UtcNow
+			};
+
+			_context.Isletmeler.Add(yeniIsletme);
 			await _context.SaveChangesAsync();
-			return isletme;
+			return yeniIsletme;
 		}
 
 		public async Task<Isletme> IsletmeGuncelle(Guid id, Isletme isletme)
@@ -30,8 +40,10 @@ namespace KiralamaAPI.Service
 				return null;
 
 			mevcut.Ad = isletme.Ad;
+			mevcut.Adres = isletme.Adres;
 			mevcut.Eposta = isletme.Eposta;
 			mevcut.SifreHash = isletme.SifreHash;
+			
 
 			await _context.SaveChangesAsync();
 			return mevcut;

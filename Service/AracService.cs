@@ -57,9 +57,24 @@ namespace KiralamaAPI.Service
 
 		public async Task<Arac> AracEkle(Arac arac)
 		{
-			_context.Araclar.Add(arac);
+			var yeniArac = new Arac
+			{
+				Id = Guid.NewGuid(),
+				PlakaNumarasi = arac.PlakaNumarasi,
+				Model = arac.Model,
+				Tip = arac.Tip,
+				SaatlikUcret = arac.SaatlikUcret,
+				KonumEnlem = arac.KonumEnlem,
+				KonumBoylam = arac.KonumBoylam,
+				MusaitMi = arac.MusaitMi, // veya true olarak sabitlenebilir
+				Kilitli = arac.Kilitli,   // veya false olarak sabitlenebilir
+				IsletmeId = arac.IsletmeId,
+				UserId = arac.UserId
+			};
+
+			_context.Araclar.Add(yeniArac);
 			await _context.SaveChangesAsync();
-			return arac;
+			return yeniArac;
 		}
 
 		public async Task<Arac> AracGuncelle(int id, Arac arac)

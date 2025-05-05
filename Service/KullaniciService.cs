@@ -21,22 +21,55 @@ namespace KiralamaAPI.Service
 
 		public async Task<Kullanici?> ProfilGetirAsync(Guid kullaniciId)
 		{
-			return await _context.Kullanicilar.FindAsync(kullaniciId);
+			return await _context.Kullanicilar
+			.AsNoTracking()
+			.FirstOrDefaultAsync(k => k.Id == kullaniciId);
 		}
 
 		public async Task<Kullanici> KayitOl(Kullanici kullanici)
 		{
-			kullanici.SifreHash = HashSifre(kullanici.SifreHash);
-			_context.Kullanicilar.Add(kullanici);
+
+			string rol = string.IsNullOrWhiteSpace(kullanici.Rol) ||
+				 !(kullanici.Rol.Equals("Kullanici", StringComparison.OrdinalIgnoreCase) ||
+				   kullanici.Rol.Equals("Admin", StringComparison.OrdinalIgnoreCase))
+				 ? "Kullanici"
+				 : kullanici.Rol;
+
+			var yeniKullanici = new Kullanici
+			{
+				Ad = kullanici.Ad,
+				Soyad = kullanici.Soyad,
+				Eposta = kullanici.Eposta,
+				SifreHash = HashSifre(kullanici.SifreHash),
+				KayitTarihi = DateTime.Now,
+				Rol = rol
+			};
+
+			_context.Kullanicilar.Add(yeniKullanici);
 			await _context.SaveChangesAsync();
-			return kullanici;
+
+			return yeniKullanici;
 		}
 
 		public async Task<Kullanici> GirisYap(KullaniciGirisModel girisModel)
 		{
+			if (girisModel == null || string.IsNullOrEmpty(girisModel.Eposta) || string.IsNullOrEmpty(girisModel.Sifre))
+			{
+				return null; 
+			}
+
+			// Şifreyi hash'le
 			var hashliSifre = HashSifre(girisModel.Sifre);
-			return await _context.Kullanicilar
-				.FirstOrDefaultAsync(k => k.Eposta == girisModel.Eposta && k.SifreHash == hashliSifre);
+
+			
+			var kullanici = await _context.Kullanicilar
+				.FirstOrDefaultAsync(k =>
+					k.Eposta == girisModel.Eposta &&
+					k.SifreHash == hashliSifre
+				);
+
+			
+			return kullanici;
 		}
 
 		public async Task<Kullanici> Guncelle(Guid id, Kullanici guncelKullanici)

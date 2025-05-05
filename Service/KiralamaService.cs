@@ -19,7 +19,7 @@ namespace KiralamaAPI.Service
 		public async Task<Kiralama> KiralamaBaslat(Kiralama kiralama)
 		{
 			kiralama.Durum = "Aktif";
-			kiralama.BaslangicTarihi = DateTime.UtcNow;
+			kiralama.BaslangicTarihi = DateTime.Now;
 			await _context.Kiralamalar.AddAsync(kiralama);
 			await _context.SaveChangesAsync();
 			return kiralama;
