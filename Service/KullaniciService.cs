@@ -1,15 +1,21 @@
 ﻿using KiralamaAPI.Data;
 using KiralamaAPI.Models;
-using Microsoft.EntityFrameworkCore; 
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using System.Security.Cryptography;
 using System.Text;
-
+using System.Threading.Tasks;
 
 namespace KiralamaAPI.Service
 {
+	// DTO sınıfı: Sadece e-posta ve şifre için
+	public class KullaniciKayitDto
+	{
+		public string Eposta { get; set; }
+		public string Sifre { get; set; }
+	}
+
 	public class KullaniciService : IKullaniciService
 	{
 		private readonly KiralamaDbContext _context;
@@ -22,27 +28,30 @@ namespace KiralamaAPI.Service
 		public async Task<Kullanici?> ProfilGetirAsync(Guid kullaniciId)
 		{
 			return await _context.Kullanicilar
-			.AsNoTracking()
-			.FirstOrDefaultAsync(k => k.Id == kullaniciId);
+				.AsNoTracking()
+				.FirstOrDefaultAsync(k => k.Id == kullaniciId);
 		}
 
-		public async Task<Kullanici> KayitOl(Kullanici kullanici)
+		public async Task<Kullanici> KayitOl(KullaniciKayitDto kayitDto)
 		{
+			// Giriş doğrulaması
+			if (string.IsNullOrWhiteSpace(kayitDto.Eposta) || string.IsNullOrWhiteSpace(kayitDto.Sifre))
+			{
+				throw new ArgumentException("E-posta ve şifre alanları zorunludur.");
+			}
 
-			string rol = string.IsNullOrWhiteSpace(kullanici.Rol) ||
-				 !(kullanici.Rol.Equals("Kullanici", StringComparison.OrdinalIgnoreCase) ||
-				   kullanici.Rol.Equals("Admin", StringComparison.OrdinalIgnoreCase))
-				 ? "Kullanici"
-				 : kullanici.Rol;
+			// E-posta zaten kayıtlı mı?
+			if (await _context.Kullanicilar.AnyAsync(k => k.Eposta == kayitDto.Eposta))
+			{
+				throw new InvalidOperationException("Bu e-posta adresi zaten kayıtlı.");
+			}
 
 			var yeniKullanici = new Kullanici
 			{
-				Ad = kullanici.Ad,
-				Soyad = kullanici.Soyad,
-				Eposta = kullanici.Eposta,
-				SifreHash = HashSifre(kullanici.SifreHash),
+				Eposta = kayitDto.Eposta,
+				SifreHash = HashSifre(kayitDto.Sifre),
 				KayitTarihi = DateTime.Now,
-				Rol = rol
+				Rol = "Kullanici" // Varsayılan rol
 			};
 
 			_context.Kullanicilar.Add(yeniKullanici);
@@ -51,24 +60,22 @@ namespace KiralamaAPI.Service
 			return yeniKullanici;
 		}
 
-		public async Task<Kullanici> GirisYap(KullaniciGirisModel girisModel)
+		public async Task<Kullanici?> GirisYap(KullaniciKayitDto kayitDto)
 		{
-			if (girisModel == null || string.IsNullOrEmpty(girisModel.Eposta) || string.IsNullOrEmpty(girisModel.Sifre))
+			if (kayitDto == null || string.IsNullOrWhiteSpace(kayitDto.Eposta) || string.IsNullOrWhiteSpace(kayitDto.Sifre))
 			{
-				return null; 
+				return null;
 			}
 
-			// Şifreyi hash'le
-			var hashliSifre = HashSifre(girisModel.Sifre);
+			var hashliSifre = HashSifre(kayitDto.Sifre);
 
-			
 			var kullanici = await _context.Kullanicilar
+				.AsNoTracking()
 				.FirstOrDefaultAsync(k =>
-					k.Eposta == girisModel.Eposta &&
+					k.Eposta == kayitDto.Eposta &&
 					k.SifreHash == hashliSifre
 				);
 
-			
 			return kullanici;
 		}
 
@@ -81,7 +88,6 @@ namespace KiralamaAPI.Service
 			mevcut.Soyad = guncelKullanici.Soyad;
 			mevcut.Eposta = guncelKullanici.Eposta;
 
-			// Şifre değiştiyse güncelle
 			if (!string.IsNullOrEmpty(guncelKullanici.SifreHash))
 				mevcut.SifreHash = HashSifre(guncelKullanici.SifreHash);
 
@@ -95,14 +101,12 @@ namespace KiralamaAPI.Service
 			if (mevcutKullanici == null)
 				return false;
 
-			// Kullanıcının bilgilerini güncelle
-			mevcutKullanici.Rol = kullanici.Rol;  // Admin rolünü güncelliyoruz
+			mevcutKullanici.Rol = kullanici.Rol;
 			_context.Kullanicilar.Update(mevcutKullanici);
 			await _context.SaveChangesAsync();
 
 			return true;
 		}
-
 
 		public async Task<bool> Sil(Guid id)
 		{
@@ -116,6 +120,9 @@ namespace KiralamaAPI.Service
 
 		private string HashSifre(string sifre)
 		{
+			if (string.IsNullOrEmpty(sifre))
+				throw new ArgumentNullException(nameof(sifre), "Şifre boş olamaz.");
+
 			using var sha256 = SHA256.Create();
 			var bytes = Encoding.UTF8.GetBytes(sifre);
 			var hash = sha256.ComputeHash(bytes);

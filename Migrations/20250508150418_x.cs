@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace KiralamaAPI.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class x : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -47,8 +47,8 @@ namespace KiralamaAPI.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Ad = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    Soyad = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Ad = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    Soyad = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     Eposta = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     SifreHash = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     KayitTarihi = table.Column<DateTime>(type: "datetime2", nullable: false),

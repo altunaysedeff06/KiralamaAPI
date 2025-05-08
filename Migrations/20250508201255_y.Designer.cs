@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace KiralamaAPI.Migrations
 {
     [DbContext(typeof(KiralamaDbContext))]
-    [Migration("20250428194356_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20250508201255_y")]
+    partial class y
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

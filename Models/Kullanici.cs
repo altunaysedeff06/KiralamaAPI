@@ -6,11 +6,11 @@ namespace KiralamaAPI.Models
 	{
 		public Guid Id { get; set; }
 
-		[Required, MaxLength(100)]
-		public string Ad { get; set; }
+		[MaxLength(100)]
+		public string? Ad { get; set; }
 
-		[Required, MaxLength(100)]
-		public string Soyad { get; set; }
+		[MaxLength(100)]
+		public string? Soyad { get; set; }
 
 		[Required, EmailAddress]
 		public string Eposta { get; set; }

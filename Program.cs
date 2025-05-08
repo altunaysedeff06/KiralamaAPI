@@ -161,27 +161,27 @@ namespace KiralamaAPI
 			});
 
 
-			app.MapPost("/kullanici/kayit", async (IKullaniciService kullaniciService, Kullanici kullanici) =>
+			app.MapPost("/kullanici/kayit", async (IKullaniciService kullaniciService, KullaniciKayitDto kayitDto) =>
 			{
 				// Verinin doðruluðunu manuel kontrol et
 				var validationResults = new List<ValidationResult>();
-				var validationContext = new ValidationContext(kullanici);
-				bool isValid = Validator.TryValidateObject(kullanici, validationContext, validationResults, true);
+				var validationContext = new ValidationContext(kayitDto);
+				bool isValid = Validator.TryValidateObject(kayitDto, validationContext, validationResults, true);
 
 				if (!isValid)
 				{
 					return Results.BadRequest(validationResults);
 				}
 
-				var yeniKullanici = await kullaniciService.KayitOl(kullanici);
+				var yeniKullanici = await kullaniciService.KayitOl(kayitDto);
 				return Results.Ok(yeniKullanici);
 			});
 
 
 
-			app.MapPost("/kullanici/giris", async (IKullaniciService kullaniciService, KullaniciGirisModel model) =>
+			app.MapPost("/kullanici/giris", async (IKullaniciService kullaniciService, KullaniciKayitDto kayitDto) =>
 			{
-				var kullanici = await kullaniciService.GirisYap(model);
+				var kullanici = await kullaniciService.GirisYap(kayitDto);
 
 				if (kullanici == null)
 					return Results.Unauthorized(); // Eðer kullanýcý doðrulanmazsa, 401 döner
@@ -193,7 +193,7 @@ namespace KiralamaAPI
 					new Claim(ClaimTypes.Role, kullanici.Rol)  // Kullanýcýnýn rolü
 				};
 
-				var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("kiralamaApi"));
+				var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("BuBenimSuperGucluKeyimBuBenimSuperGucluKeyimBuBenimSuperGucluKeyimBuBenimSuperGucluKeyimBuBenimSuperGucluKeyimBuBenimSuperGucluKeyim"));
 				var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
 				var token = new JwtSecurityToken(
