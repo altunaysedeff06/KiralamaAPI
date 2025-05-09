@@ -96,7 +96,8 @@ namespace KiralamaAPI
 				app.UseSwaggerUI();
 			}
 
-			app.UseHttpsRedirection();
+			//app.UseHttpsRedirection();
+			app.UseAuthentication();
 			app.UseAuthorization();
 
 			// Minimal API endpoint'leri
@@ -178,37 +179,37 @@ namespace KiralamaAPI
 			});
 
 
-
 			app.MapPost("/kullanici/giris", async (IKullaniciService kullaniciService, KullaniciKayitDto kayitDto) =>
 			{
+				if (kayitDto == null || string.IsNullOrWhiteSpace(kayitDto.Eposta) || string.IsNullOrWhiteSpace(kayitDto.Sifre))
+					return Results.BadRequest(new { Message = "E-posta veya þifre boþ olamaz." });
+
 				var kullanici = await kullaniciService.GirisYap(kayitDto);
-
 				if (kullanici == null)
-					return Results.Unauthorized(); // Eðer kullanýcý doðrulanmazsa, 401 döner
+					return Results.BadRequest(new { Message = "E-posta veya þifre yanlýþ." });
 
-				// Kullanýcý doðrulandý, þimdi JWT token oluþturuyoruz
 				var claims = new[]
 				{
-					new Claim(ClaimTypes.Name, kullanici.Id.ToString()),  // Kullanýcý ID'si
-					new Claim(ClaimTypes.Role, kullanici.Rol)  // Kullanýcýnýn rolü
-				};
+		new Claim(ClaimTypes.Name, kullanici.Id.ToString()),
+		new Claim(ClaimTypes.Role, kullanici.Rol)
+	};
 
-				var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("BuBenimSuperGucluKeyimBuBenimSuperGucluKeyimBuBenimSuperGucluKeyimBuBenimSuperGucluKeyimBuBenimSuperGucluKeyimBuBenimSuperGucluKeyim"));
+				var jwtKey = builder.Configuration["Jwt:Key"];
+				var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
 				var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
 				var token = new JwtSecurityToken(
-					issuer: "KiralamaAPI",  // Token vereni
-					audience: "KiralamaAPIUsers",  // Token'ý hedef alan
-					claims: claims,  // Claims, yani token'da saklanacak bilgileri
-					expires: DateTime.Now.AddMinutes(60),  // Token'ýn geçerlilik süresi
-					signingCredentials: credentials  // Güvenli imzalama anahtarý
+					issuer: builder.Configuration["Jwt:Issuer"],
+					audience: builder.Configuration["Jwt:Audience"],
+					claims: claims,
+					expires: DateTime.Now.AddMinutes(builder.Configuration.GetValue<int>("Jwt:ExpireMinutes", 60)),
+					signingCredentials: credentials
 				);
 
-				// Token'ý oluþturduktan sonra geri döndür
 				var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
-
-				return Results.Ok(new { Token = tokenString });  // JWT token'ý döner
+				return Results.Ok(new { Token = tokenString });
 			});
+
 
 			app.MapPut("/kullanici/guncelle/{id}", async (Guid id, Kullanici guncelKullanici, IKullaniciService service) =>
 			{
@@ -251,15 +252,21 @@ namespace KiralamaAPI
 
 			app.MapGet("/kullanici/profil", async (HttpContext http, IKullaniciService service) =>
 			{
-				var kullaniciId = http.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+				var kullaniciId = http.User.FindFirst(ClaimTypes.Name)?.Value;
 				if (string.IsNullOrEmpty(kullaniciId))
-					return Results.Unauthorized(); // önce kontrol et
+					return Results.Unauthorized();
 
-				var kullaniciGuid = Guid.Parse(kullaniciId); // ondan sonra parse yap
+				var kullaniciGuid = Guid.Parse(kullaniciId);
 				var kullanici = await service.ProfilGetirAsync(kullaniciGuid);
 
 				return kullanici == null ? Results.NotFound() : Results.Ok(kullanici);
 			});
+
+			app.MapGet("/kullanici/profil/{kullaniciId}", async (Guid kullaniciId, IKullaniciService service) =>
+			{
+				var kullanici = await service.ProfilGetirAsync(kullaniciId);
+				return kullanici == null ? Results.NotFound() : Results.Ok(kullanici);
+			}).RequireAuthorization();
 
 			app.MapPost("/araclar/nearby", async (LocationRequest request, IAracService aracService) =>
 			{

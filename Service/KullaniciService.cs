@@ -64,10 +64,12 @@ namespace KiralamaAPI.Service
 		{
 			if (kayitDto == null || string.IsNullOrWhiteSpace(kayitDto.Eposta) || string.IsNullOrWhiteSpace(kayitDto.Sifre))
 			{
+				Console.WriteLine("Giriş hatası: E-posta veya şifre boş.");
 				return null;
 			}
 
 			var hashliSifre = HashSifre(kayitDto.Sifre);
+			Console.WriteLine($"Giriş denemesi: Eposta={kayitDto.Eposta}, HashliSifre={hashliSifre}");
 
 			var kullanici = await _context.Kullanicilar
 				.AsNoTracking()
@@ -75,6 +77,15 @@ namespace KiralamaAPI.Service
 					k.Eposta == kayitDto.Eposta &&
 					k.SifreHash == hashliSifre
 				);
+
+			if (kullanici == null)
+			{
+				Console.WriteLine($"Kullanıcı bulunamadı: Eposta={kayitDto.Eposta}");
+			}
+			else
+			{
+				Console.WriteLine($"Kullanıcı bulundu: ID={kullanici.Id}, Rol={kullanici.Rol}");
+			}
 
 			return kullanici;
 		}
