@@ -9,7 +9,7 @@ namespace KiralamaAPI.Models
 		[Required, MaxLength(200)]
 		public string Ad { get; set; }
 
-		[Required, MaxLength(200)]
+		[MaxLength(200)]
 		public string Adres { get; set; }
 
 		[Required, EmailAddress]
@@ -18,6 +18,9 @@ namespace KiralamaAPI.Models
 		[Required]
 		public string SifreHash { get; set; }
 
-		public DateTime KayitTarihi { get; set; } = DateTime.UtcNow;
+		[Required]
+		public string Rol { get; set; } = "Isletme"; 
+
+		public DateTime KayitTarihi { get; set; } = DateTime.Now;
 	}
 }

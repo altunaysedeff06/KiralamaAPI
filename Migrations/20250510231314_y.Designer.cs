@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace KiralamaAPI.Migrations
 {
     [DbContext(typeof(KiralamaDbContext))]
-    [Migration("20250508201255_y")]
+    [Migration("20250510231314_y")]
     partial class y
     {
         /// <inheritdoc />
@@ -115,7 +115,6 @@ namespace KiralamaAPI.Migrations
                         .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("Adres")
-                        .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
@@ -125,6 +124,10 @@ namespace KiralamaAPI.Migrations
 
                     b.Property<DateTime>("KayitTarihi")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("Rol")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SifreHash")
                         .IsRequired()
@@ -179,7 +182,6 @@ namespace KiralamaAPI.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Ad")
-                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
@@ -199,7 +201,6 @@ namespace KiralamaAPI.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Soyad")
-                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 

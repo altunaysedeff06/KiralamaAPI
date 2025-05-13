@@ -37,6 +37,10 @@ namespace KiralamaAPI.Data
 				.HasIndex(i => i.Eposta)
 				.IsUnique();
 
+			modelBuilder.Entity<Isletme>()
+			.Property(i => i.Adres)
+			.IsRequired(false); // Adres NULL olabilir
+
 			// Araçların plaka numarasının benzersiz olması için
 			modelBuilder.Entity<Arac>()
 				.HasIndex(a => a.PlakaNumarasi)

@@ -112,7 +112,6 @@ namespace KiralamaAPI.Migrations
                         .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("Adres")
-                        .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
@@ -122,6 +121,10 @@ namespace KiralamaAPI.Migrations
 
                     b.Property<DateTime>("KayitTarihi")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("Rol")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SifreHash")
                         .IsRequired()

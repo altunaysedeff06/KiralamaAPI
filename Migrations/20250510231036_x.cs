@@ -35,6 +35,7 @@ namespace KiralamaAPI.Migrations
                     Adres = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     Eposta = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     SifreHash = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Rol = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     KayitTarihi = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>

@@ -1,360 +1,320 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using System.Threading.Tasks;
 using KiralamaAPI.Data;
 using KiralamaAPI.Models;
 using KiralamaAPI.Service;
-using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System.IdentityModel.Tokens.Jwt;
-namespace KiralamaAPI
+using Swashbuckle.AspNetCore.SwaggerGen;
+
+namespace KiralamaAPI;
+
+public class Program
 {
-	public class Program
+	public static void Main(string[] args)
 	{
-		public static void Main(string[] args)
+		WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+		string connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+		builder.Services.AddDbContext<KiralamaDbContext>(delegate (DbContextOptionsBuilder options)
 		{
-			var builder = WebApplication.CreateBuilder(args);
-
-			// Connection String'i oku ve DbContext'i ekle
-			var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
-			builder.Services.AddDbContext<KiralamaDbContext>(options =>
-				options.UseSqlServer(connectionString));
-
-			// JWT AUTHENTICATION EKLENDÝ
-			builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-				.AddJwtBearer(options =>
-				{
-					options.TokenValidationParameters = new TokenValidationParameters
-					{
-						ValidateIssuer = true,
-						ValidateAudience = true,
-						ValidateLifetime = true,
-						ValidateIssuerSigningKey = true,
-						ValidIssuer = builder.Configuration["Jwt:Issuer"],
-						ValidAudience = builder.Configuration["Jwt:Audience"],
-						IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
-					};
-				});
-
-			// Servisleri DI konteynerine ekle
-			builder.Services.AddScoped<IAracService, AracService>();
-			builder.Services.AddScoped<IIsletmeService, IsletmeService>();
-			builder.Services.AddScoped<IKullaniciService, KullaniciService>();
-			builder.Services.AddScoped<IKiralamaService, KiralamaService>();
-			builder.Services.AddScoped<IBildirimService, BildirimService>();
-
-
-			builder.Services.AddControllers(); // (Gerekli deðilse kaldýrabilirsin)
-											   //builder.Services.AddAuthorization();
-			builder.Services.AddAuthorization(options =>
+			SqlServerDbContextOptionsExtensions.UseSqlServer(options, connectionString, (Action<SqlServerDbContextOptionsBuilder>)null);
+		});
+		builder.Services.AddAuthentication("Bearer").AddJwtBearer(delegate (JwtBearerOptions options)
+		{
+			
+			options.TokenValidationParameters = new TokenValidationParameters
 			{
-				options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
-				options.AddPolicy("UserOnly", policy => policy.RequireRole("User"));
+				ValidateIssuer = true,
+				ValidateAudience = true,
+				ValidateLifetime = false,
+				ValidateIssuerSigningKey = true,
+				ValidIssuer = builder.Configuration["Jwt:Issuer"],
+				ValidAudience = builder.Configuration["Jwt:Audience"],
+				IssuerSigningKey = (SecurityKey)new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+			};
+		});
+		builder.Services.AddScoped<IAracService, AracService>();
+		builder.Services.AddScoped<IIsletmeService, IsletmeService>();
+		builder.Services.AddScoped<IKullaniciService, KullaniciService>();
+		builder.Services.AddScoped<IKiralamaService, KiralamaService>();
+		builder.Services.AddScoped<IBildirimService, BildirimService>();
+		builder.Services.AddControllers();
+		builder.Services.AddAuthorization(delegate (AuthorizationOptions options)
+		{
+			options.AddPolicy("AdminOnly", delegate (AuthorizationPolicyBuilder policy)
+			{
+				policy.RequireRole("Admin");
 			});
-
-
-
-			// Swagger/OpenAPI yapýlandýrmasý
-			builder.Services.AddEndpointsApiExplorer();
-			//builder.Services.AddSwaggerGen();
-			builder.Services.AddSwaggerGen(c =>
+			options.AddPolicy("UserOnly", delegate (AuthorizationPolicyBuilder policy)
 			{
-					c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-					{
-						In = ParameterLocation.Header,
-						Description = "Please enter JWT with Bearer into field",
-						Name = "Authorization",
-						Type = SecuritySchemeType.ApiKey
-					});
-
-					c.AddSecurityRequirement(new OpenApiSecurityRequirement
-					{
-						{
-							new OpenApiSecurityScheme
-							{
-								Reference = new OpenApiReference
-								{
-									Type = ReferenceType.SecurityScheme,
-									Id = "Bearer"
-								}
-							},
-							new string[] {}
-							}
-						});
-					});
-
-
-			var app = builder.Build();
-
-			// HTTP Request Pipeline yapýlandýrmasý
-			if (app.Environment.IsDevelopment())
+				policy.RequireRole("User");
+			});
+			options.AddPolicy("IsletmeOnly", policy =>
+					 policy.RequireClaim(ClaimTypes.Role, "Isletme"));
+		});
+		builder.Services.AddEndpointsApiExplorer();
+		builder.Services.AddSwaggerGen(delegate (SwaggerGenOptions c)
+		{
+			c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
 			{
-				app.UseSwagger();
-				app.UseSwaggerUI();
+				In = ParameterLocation.Header,
+				Description = "Please enter JWT with Bearer into field",
+				Name = "Authorization",
+				Type = SecuritySchemeType.ApiKey
+			});
+			c.AddSecurityRequirement(new OpenApiSecurityRequirement {
+			{
+				new OpenApiSecurityScheme
+				{
+					Reference = new OpenApiReference
+					{
+						Type = ReferenceType.SecurityScheme,
+						Id = "Bearer"
+					}
+				},
+				new string[0]
+			} });
+		});
+		WebApplication app = builder.Build();
+		if (app.Environment.IsDevelopment())
+		{
+			app.UseSwagger();
+			app.UseSwaggerUI();
+		}
+		app.UseAuthentication();
+		app.UseAuthorization();
+		app.MapPost("/isletme/arac/ekle", (Func<IAracService, Arac, Task<IResult>>)(async (IAracService aracService, Arac arac) => Results.Ok<Arac>(await aracService.AracEkle(arac))));
+		app.MapPut("/isletme/arac/guncelle/{id}", (Func<int, IAracService, Arac, Task<IResult>>)async delegate (int id, IAracService aracService, Arac arac)
+		{
+			Arac guncellenenArac = await aracService.AracGuncelle(id, arac);
+			return (guncellenenArac == null) ? Results.NotFound<string>("Araç bulunamadý.") : Results.Ok<Arac>(guncellenenArac);
+		});
+		app.MapDelete("/isletme/arac/sil/{id}", (Func<int, IAracService, Task<IResult>>)(async (int id, IAracService aracService) => (await aracService.AracSil(id) == null) ? Results.NotFound<string>("Araç bulunamadý.") : Results.Ok<string>("Araç baþarýyla silindi.")));
+		app.MapGet("/isletme/araclar", (Func<IAracService, Task<IResult>>)(async (IAracService aracService) => Results.Ok<List<Arac>>(await aracService.AraclariListele())));
+		app.MapPost("/isletme/kayit", (Func<IIsletmeService, IsletmeKayitDto, Task<IResult>>)async delegate (IIsletmeService isletmeService, IsletmeKayitDto kayitDto)
+		{
+			try
+			{
+				if (kayitDto == null || string.IsNullOrWhiteSpace(kayitDto.Ad) || string.IsNullOrWhiteSpace(kayitDto.Eposta) || string.IsNullOrWhiteSpace(kayitDto.Sifre))
+				{
+					return Results.BadRequest(new
+					{
+						Message = "Ýþletme adý, e-posta veya þifre boþ olamaz."
+					});
+				}
+				return Results.Ok<Isletme>(await isletmeService.IsletmeEkle(kayitDto));
+			}
+			catch (InvalidOperationException ex7)
+			{
+				InvalidOperationException ex5 = ex7;
+				return Results.Conflict(new { ex5.Message });
+			}
+			catch (DbUpdateException ex8)
+			{
+				DbUpdateException ex6 = ex8;
+				return Results.BadRequest(new
+				{
+					Message = "Veritabaný hatasý: " + ex6.InnerException?.Message
+				});
+			}
+		});
+		app.MapPost("/isletme/giris", async (
+	IIsletmeService isletmeService,
+	IConfiguration configuration,
+	IsletmeGirisDto girisDto) =>
+		{
+			var isletme = await isletmeService.GirisYap(girisDto);
+			if (isletme == null)
+			{
+				return Results.BadRequest(new { Message = "E-posta veya þifre yanlýþ." });
 			}
 
-			//app.UseHttpsRedirection();
-			app.UseAuthentication();
-			app.UseAuthorization();
-
-			// Minimal API endpoint'leri
-			app.MapPost("/isletme/arac/ekle", async (IAracService aracService, Arac arac) =>
+			var claims = new[]
 			{
-				var eklenenArac = await aracService.AracEkle(arac);
-				return Results.Ok(eklenenArac);
-			});
-
-			app.MapPut("/isletme/arac/guncelle/{id}", async (int id, IAracService aracService, Arac arac) =>
-			{
-				var guncellenenArac = await aracService.AracGuncelle(id, arac);
-				if (guncellenenArac == null)
-					return Results.NotFound("Araç bulunamadý.");
-				return Results.Ok(guncellenenArac);
-			});
-
-			app.MapDelete("/isletme/arac/sil/{id}", async (int id, IAracService aracService) =>
-			{
-				var silinenArac = await aracService.AracSil(id);
-				if (silinenArac == null)
-					return Results.NotFound("Araç bulunamadý.");
-				return Results.Ok("Araç baþarýyla silindi.");
-			});
-
-			app.MapGet("/isletme/araclar", async (IAracService aracService) =>
-			{
-				var araclar = await aracService.AraclariListele();
-				return Results.Ok(araclar);
-			});
-
-
-
-			app.MapPost("/isletme/ekle", async (IIsletmeService service, Isletme isletme) =>
-			{
-				var eklenen = await service.IsletmeEkle(isletme);
-				return Results.Ok(eklenen);
-			});
-
-			app.MapPut("/isletme/guncelle/{id}", async (Guid id, IIsletmeService service, Isletme isletme) =>
-			{
-				var guncel = await service.IsletmeGuncelle(id, isletme);
-				return guncel == null ? Results.NotFound() : Results.Ok(guncel);
-			});
-
-			app.MapDelete("/isletme/sil/{id}", async (Guid id, IIsletmeService service) =>
-			{
-				var silinen = await service.IsletmeSil(id);
-				return silinen == null ? Results.NotFound() : Results.Ok("Ýþletme silindi");
-			});
-
-			app.MapGet("/isletme/liste", async (IIsletmeService service) =>
-			{
-				var liste = await service.IsletmeleriListele();
-				return Results.Ok(liste);
-			});
-
-			app.MapGet("/isletme/{id}", async (Guid id, IIsletmeService service) =>
-			{
-				var isletme = await service.IsletmeGetir(id);
-				return isletme == null ? Results.NotFound() : Results.Ok(isletme);
-			});
-
-
-			app.MapPost("/kullanici/kayit", async (IKullaniciService kullaniciService, KullaniciKayitDto kayitDto) =>
-			{
-				// Verinin doðruluðunu manuel kontrol et
-				var validationResults = new List<ValidationResult>();
-				var validationContext = new ValidationContext(kayitDto);
-				bool isValid = Validator.TryValidateObject(kayitDto, validationContext, validationResults, true);
-
-				if (!isValid)
-				{
-					return Results.BadRequest(validationResults);
-				}
-
-				var yeniKullanici = await kullaniciService.KayitOl(kayitDto);
-				return Results.Ok(yeniKullanici);
-			});
-
-
-			app.MapPost("/kullanici/giris", async (IKullaniciService kullaniciService, KullaniciKayitDto kayitDto) =>
-			{
-				if (kayitDto == null || string.IsNullOrWhiteSpace(kayitDto.Eposta) || string.IsNullOrWhiteSpace(kayitDto.Sifre))
-					return Results.BadRequest(new { Message = "E-posta veya þifre boþ olamaz." });
-
-				var kullanici = await kullaniciService.GirisYap(kayitDto);
-				if (kullanici == null)
-					return Results.BadRequest(new { Message = "E-posta veya þifre yanlýþ." });
-
-				var claims = new[]
-				{
-		new Claim(ClaimTypes.Name, kullanici.Id.ToString()),
-		new Claim(ClaimTypes.Role, kullanici.Rol)
+		new Claim(ClaimTypes.Name, isletme.Id.ToString()),
+		new Claim(ClaimTypes.Role, "Isletme")
 	};
 
-				var jwtKey = builder.Configuration["Jwt:Key"];
-				var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
-				var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+			var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["Jwt:Key"]));
+			var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+			var expires = DateTime.Now.AddMinutes(configuration.GetValue<int>("Jwt:ExpireMinutes", 60));
 
-				var token = new JwtSecurityToken(
-					issuer: builder.Configuration["Jwt:Issuer"],
-					audience: builder.Configuration["Jwt:Audience"],
-					claims: claims,
-					expires: DateTime.Now.AddMinutes(builder.Configuration.GetValue<int>("Jwt:ExpireMinutes", 60)),
-					signingCredentials: credentials
-				);
+			var token = new JwtSecurityToken(
+				issuer: configuration["Jwt:Issuer"],
+				audience: configuration["Jwt:Audience"],
+				claims: claims,
+				expires: expires,
+				signingCredentials: creds
+			);
 
-				var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
-				return Results.Ok(new { Token = tokenString });
-			});
+			var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+
+			return Results.Ok(new { Token = tokenString });
+		});
 
 
-			app.MapPut("/kullanici/guncelle/{id}", async (Guid id, Kullanici guncelKullanici, IKullaniciService service) =>
+
+		app.MapDelete("/isletme/sil/{id}",	async (Guid id, IIsletmeService service) =>	(await service.IsletmeSil(id) == null)
+			? Results.NotFound((object)null)
+			: Results.Ok<string>("Ýþletme silindi"));
+
+		app.MapGet("/isletme/{id}", (Func<Guid, IIsletmeService, Task<IResult>>)async delegate (Guid id, IIsletmeService service)
+		{
+			Isletme isletme = await service.IsletmeGetir(id);
+			return (isletme == null) ? Results.NotFound((object)null) : Results.Ok<Isletme>(isletme);
+		}).RequireAuthorization("IsletmeOnly");
+		app.MapPost("/kullanici/kayit", (Func<IKullaniciService, KullaniciKayitDto, Task<IResult>>)async delegate (IKullaniciService kullaniciService, KullaniciKayitDto kayitDto)
+		{
+			List<ValidationResult> validationResults = new List<ValidationResult>();
+			ValidationContext validationContext = new ValidationContext(kayitDto);
+			return (!Validator.TryValidateObject(kayitDto, validationContext, validationResults, validateAllProperties: true)) ? Results.BadRequest<List<ValidationResult>>(validationResults) : Results.Ok<Kullanici>(await kullaniciService.KayitOl(kayitDto));
+		});
+		app.MapPost("/kullanici/giris", (Func<IKullaniciService, KullaniciKayitDto, Task<IResult>>)async delegate (IKullaniciService kullaniciService, KullaniciKayitDto kayitDto)
+		{
+			if (kayitDto == null || string.IsNullOrWhiteSpace(kayitDto.Eposta) || string.IsNullOrWhiteSpace(kayitDto.Sifre))
 			{
-				var sonuc = await service.Guncelle(id, guncelKullanici);
-				if (sonuc == null)
-					return Results.NotFound("Kullanýcý bulunamadý.");
-				return Results.Ok(sonuc);
-			});
-
-			app.MapDelete("/kullanici/sil/{id}", async (Guid id, IKullaniciService service) =>
-			{
-				var silindi = await service.Sil(id);
-				return silindi ? Results.Ok("Hesap silindi.") : Results.NotFound("Kullanýcý bulunamadý.");
-			});
-
-
-			app.MapPost("/kiralama/baslat", async (IKiralamaService service, Kiralama kiralama) =>
-			{
-				var sonuc = await service.KiralamaBaslat(kiralama);
-				return Results.Ok(sonuc);
-			});
-
-			app.MapGet("/kiralama/{id}", async (IKiralamaService service, Guid id) =>
-			{
-				var kiralama = await service.KiralamaGetir(id);
-				return kiralama == null ? Results.NotFound() : Results.Ok(kiralama);
-			});
-
-			app.MapGet("/kiralama/kullanici/{kullaniciId}", async (IKiralamaService service, Guid kullaniciId) =>
-			{
-				var kiralamalar = await service.KullaniciKiralamaGecmisi(kullaniciId);
-				return Results.Ok(kiralamalar);
-			});
-
-			app.MapPut("/kiralama/durum-guncelle/{id}", async (IKiralamaService service, Guid id, string durum) =>
-			{
-				var basarili = await service.KiralamaDurumGuncelle(id, durum);
-				return basarili ? Results.Ok("Durum güncellendi.") : Results.NotFound("Kiralama bulunamadý.");
-			});
-
-			app.MapGet("/kullanici/profil", async (HttpContext http, IKullaniciService service) =>
-			{
-				var kullaniciId = http.User.FindFirst(ClaimTypes.Name)?.Value;
-				if (string.IsNullOrEmpty(kullaniciId))
-					return Results.Unauthorized();
-
-				var kullaniciGuid = Guid.Parse(kullaniciId);
-				var kullanici = await service.ProfilGetirAsync(kullaniciGuid);
-
-				return kullanici == null ? Results.NotFound() : Results.Ok(kullanici);
-			});
-
-			app.MapGet("/kullanici/profil/{kullaniciId}", async (Guid kullaniciId, IKullaniciService service) =>
-			{
-				var kullanici = await service.ProfilGetirAsync(kullaniciId);
-				return kullanici == null ? Results.NotFound() : Results.Ok(kullanici);
-			}).RequireAuthorization();
-
-			app.MapPost("/araclar/nearby", async (LocationRequest request, IAracService aracService) =>
-			{
-				var araclar = await aracService.GetNearbyAraclar(request.Enlem, request.Boylam, request.MesafeKm);
-
-				if (araclar == null || araclar.Count == 0)
-					return Results.NotFound("Yakýnlarda araç bulunamadý.");
-
-				return Results.Ok(araclar);
-			});
-
-
-
-			app.MapPost("/admin/ekle", async (IKullaniciService kullaniciService, HttpContext httpContext) =>
-			{
-				// Kullanýcýnýn kimliðini kontrol et
-				var kullaniciId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-				if (string.IsNullOrEmpty(kullaniciId))
-					return Results.Unauthorized();
-
-				var kullaniciGuid = Guid.Parse(kullaniciId);  // Kimlikten kullanýcý id'sini al
-
-				// Kullanýcýyý servisten getir
-				var kullanici = await kullaniciService.ProfilGetirAsync(kullaniciGuid);
-				if (kullanici == null)
-					return Results.NotFound("Kullanýcý bulunamadý.");
-
-				// Admin rolü olup olmadýðýný kontrol et
-				if (kullanici.Rol != "Admin")
-					return Results.Forbid();  // Eðer admin deðilse, eriþim reddedilir.
-
-				// Admin ekleme iþlemi
-				// Burada kullanýcýyý admin yapmak için mevcut kullanýcýyý güncelliyoruz
-				kullanici.Rol = "Admin"; // Kullanýcýnýn rolünü admin olarak deðiþtiriyoruz
-
-				// Kullanýcýyý güncellemek
-				var result = await kullaniciService.KullaniciGuncelleAsync(kullanici);  // Kullanýcý güncelleme metodunu çaðýrabilirsiniz
-
-				if (result)
-					return Results.Ok("Kullanýcý baþarýyla admin olarak güncellendi.");
-				else
-					return Results.BadRequest("Kullanýcý admin olarak güncellenemedi.");
-			})
-			.RequireAuthorization();
-
-			app.MapGet("/arac/{id}/kullanici", async (Guid id, IAracService aracService) =>
-			{
-				var arac = await aracService.AracGetir(id);
-				if (arac == null)
-					return Results.NotFound("Araç ve kullanýcý bilgisi bulunamadý.");
-
-				// Aracýn ve kullanýcýnýn bilgilerini döndürüyoruz
-				var aracKullanici = new
+				return Results.BadRequest(new
 				{
-					arac.Model,
-					arac.User.Id,
-					arac.User.Ad,
-					arac.User.Eposta
-				};
-
-				return Results.Ok(aracKullanici);
-			});
-
-
-
-			app.MapPost("/arac/{id}/kilitle", async (Guid id, IAracService aracService, IBildirimService bildirimService) =>
+					Message = "E-posta veya þifre boþ olamaz."
+				});
+			}
+			Kullanici kullanici4 = await kullaniciService.GirisYap(kayitDto);
+			if (kullanici4 == null)
 			{
-				var arac = await aracService.AracGetir(id);
-				if (arac == null)
-					return Results.NotFound("Araç bulunamadý.");
-
-				// Kilitleme iþlemi
-				var success = await aracService.Kilitle(id);
-
-				if (success)
+				return Results.BadRequest(new
 				{
-					await bildirimService.SendNotificationAsync(arac.UserId, "Araç baþarýyla kilitlendi.");
-					return Results.Ok("Araç baþarýyla kilitlendi.");
-				}
-
-				return Results.BadRequest("Kilitleme iþlemi baþarýsýz.");
+					Message = "E-posta veya þifre yanlýþ."
+				});
+			}
+			Claim[] claims = new Claim[2]
+			{
+				new Claim("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name", kullanici4.Id.ToString()),
+				new Claim("http://schemas.microsoft.com/ws/2008/06/identity/claims/role", kullanici4.Rol)
+			};
+			string jwtKey = builder.Configuration["Jwt:Key"];
+			SymmetricSecurityKey securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+			SigningCredentials credentials = new SigningCredentials((SecurityKey)(object)securityKey, "HS256");
+			string? text = builder.Configuration["Jwt:Issuer"];
+			string? text2 = builder.Configuration["Jwt:Audience"];
+			DateTime? dateTime = DateTime.Now.AddMinutes(builder.Configuration.GetValue("Jwt:ExpireMinutes", 60));
+			JwtSecurityToken token = new JwtSecurityToken(text, text2, (IEnumerable<Claim>)claims, (DateTime?)null, dateTime, credentials);
+			string tokenString = ((SecurityTokenHandler)new JwtSecurityTokenHandler()).WriteToken((SecurityToken)(object)token);
+			return Results.Ok(new
+			{
+				Token = tokenString
 			});
-
-
-
-
-
-			app.Run();
-		}
+		});
+		app.MapPut("/isletme/guncelle/{id}", (Func<Guid, IIsletmeService, IsletmeGuncelleDto, Task<IResult>>)async delegate (Guid id, IIsletmeService service, IsletmeGuncelleDto guncelleDto)
+		{
+			try
+			{
+				Isletme guncel = await service.IsletmeGuncelle(id, guncelleDto);
+				return (guncel == null) ? Results.NotFound((object)null) : Results.Ok<Isletme>(guncel);
+			}
+			catch (Exception ex2)
+			{
+				Exception ex = ex2;
+				return Results.BadRequest(new
+				{
+					Message = "Güncelleme baþarýsýz: " + ex.Message
+				});
+			}
+		});
+		app.MapDelete("/kullanici/sil/{id}", (Func<Guid, IKullaniciService, Task<IResult>>)(async (Guid id, IKullaniciService service) => (await service.Sil(id)) ? Results.Ok<string>("Hesap silindi.") : Results.NotFound<string>("Kullanýcý bulunamadý.")));
+		app.MapPost("/kiralama/baslat", (Func<IKiralamaService, Kiralama, Task<IResult>>)(async (IKiralamaService service, Kiralama kiralama) => Results.Ok<Kiralama>(await service.KiralamaBaslat(kiralama))));
+		app.MapGet("/kiralama/{id}", (Func<IKiralamaService, Guid, Task<IResult>>)async delegate (IKiralamaService service, Guid id)
+		{
+			Kiralama kiralama2 = await service.KiralamaGetir(id);
+			return (kiralama2 == null) ? Results.NotFound((object)null) : Results.Ok<Kiralama>(kiralama2);
+		});
+		app.MapGet("/kiralama/kullanici/{kullaniciId}", (Func<IKiralamaService, Guid, Task<IResult>>)(async (IKiralamaService service, Guid kullaniciId) => Results.Ok<List<Kiralama>>(await service.KullaniciKiralamaGecmisi(kullaniciId))));
+		app.MapPut("/kiralama/durum-guncelle/{id}", (Func<IKiralamaService, Guid, string, Task<IResult>>)(async (IKiralamaService service, Guid id, string durum) => (await service.KiralamaDurumGuncelle(id, durum)) ? Results.Ok<string>("Durum güncellendi.") : Results.NotFound<string>("Kiralama bulunamadý.")));
+		app.MapGet("/kullanici/profil", (Func<HttpContext, IKullaniciService, Task<IResult>>)async delegate (HttpContext http, IKullaniciService service)
+		{
+			string kullaniciId3 = http.User.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name")?.Value;
+			if (string.IsNullOrEmpty(kullaniciId3))
+			{
+				return Results.Unauthorized();
+			}
+			Guid kullaniciGuid2 = Guid.Parse(kullaniciId3);
+			Kullanici kullanici3 = await service.ProfilGetirAsync(kullaniciGuid2);
+			return (kullanici3 == null) ? Results.NotFound((object)null) : Results.Ok<Kullanici>(kullanici3);
+		});
+		app.MapGet("/kullanici/profil/{kullaniciId}", (Func<Guid, IKullaniciService, Task<IResult>>)async delegate (Guid kullaniciId, IKullaniciService service)
+		{
+			Kullanici kullanici2 = await service.ProfilGetirAsync(kullaniciId);
+			return (kullanici2 == null) ? Results.NotFound((object)null) : Results.Ok<Kullanici>(kullanici2);
+		}).RequireAuthorization();
+		app.MapPost("/araclar/nearby", (Func<LocationRequest, IAracService, Task<IResult>>)async delegate (LocationRequest request, IAracService aracService)
+		{
+			List<Arac> araclar = await aracService.GetNearbyAraclar(request.Enlem, request.Boylam, request.MesafeKm);
+			return (araclar == null || araclar.Count == 0) ? Results.NotFound<string>("Yakýnlarda araç bulunamadý.") : Results.Ok<List<Arac>>(araclar);
+		});
+		app.MapPost("/admin/ekle", (Func<IKullaniciService, HttpContext, Task<IResult>>)async delegate (IKullaniciService kullaniciService, HttpContext httpContext)
+		{
+			string kullaniciId2 = httpContext.User.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")?.Value;
+			if (string.IsNullOrEmpty(kullaniciId2))
+			{
+				return Results.Unauthorized();
+			}
+			Guid kullaniciGuid = Guid.Parse(kullaniciId2);
+			Kullanici kullanici = await kullaniciService.ProfilGetirAsync(kullaniciGuid);
+			if (kullanici == null)
+			{
+				return Results.NotFound<string>("Kullanýcý bulunamadý.");
+			}
+			if (kullanici.Rol != "Admin")
+			{
+				return Results.Forbid((AuthenticationProperties)null, (IList<string>)null);
+			}
+			kullanici.Rol = "Admin";
+			return (await kullaniciService.KullaniciGuncelleAsync(kullanici)) ? Results.Ok<string>("Kullanýcý baþarýyla admin olarak güncellendi.") : Results.BadRequest<string>("Kullanýcý admin olarak güncellenemedi.");
+		}).RequireAuthorization();
+		app.MapGet("/arac/{id}/kullanici", (Func<Guid, IAracService, Task<IResult>>)async delegate (Guid id, IAracService aracService)
+		{
+			Arac arac3 = await aracService.AracGetir(id);
+			if (arac3 == null)
+			{
+				return Results.NotFound<string>("Araç ve kullanýcý bilgisi bulunamadý.");
+			}
+			var aracKullanici = new
+			{
+				arac3.Model,
+				arac3.User.Id,
+				arac3.User.Ad,
+				arac3.User.Eposta
+			};
+			return Results.Ok(aracKullanici);
+		});
+		app.MapPost("/arac/{id}/kilitle", (Func<Guid, IAracService, IBildirimService, Task<IResult>>)async delegate (Guid id, IAracService aracService, IBildirimService bildirimService)
+		{
+			Arac arac2 = await aracService.AracGetir(id);
+			if (arac2 == null)
+			{
+				return Results.NotFound<string>("Araç bulunamadý.");
+			}
+			if (await aracService.Kilitle(id))
+			{
+				await bildirimService.SendNotificationAsync(arac2.UserId, "Araç baþarýyla kilitlendi.");
+				return Results.Ok<string>("Araç baþarýyla kilitlendi.");
+			}
+			return Results.BadRequest<string>("Kilitleme iþlemi baþarýsýz.");
+		});
+		app.Run();
 	}
 }
