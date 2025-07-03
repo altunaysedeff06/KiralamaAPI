@@ -8,7 +8,8 @@ namespace KiralamaAPI.Service
 		Task<Isletme> IsletmeGuncelle(Guid id, IsletmeGuncelleDto guncelleDto);
 		Task<Isletme> IsletmeSil(Guid id);
 		Task<Isletme> IsletmeGetir(Guid id);
-		Task<Isletme> GirisYap(IsletmeGirisDto girisDto);
+		Task<LoginResponse> GirisYap(IsletmeGirisDto girisDto);
+		Task<List<Isletme>> TumIsletmeleriGetir();
 		string HashSifre(string sifre, Guid isletmeId);
 		bool SifreDogrula(string sifre, string hash, Guid isletmeId);
 	}

@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace KiralamaAPI.Service
 {
-	// DTO sınıfı: Sadece e-posta ve şifre için
+	
 	public class KullaniciKayitDto
 	{
 		public string Eposta { get; set; }
@@ -25,11 +25,22 @@ namespace KiralamaAPI.Service
 			_context = context;
 		}
 
+		public async Task<List<Kullanici>> TumKullanicilariGetir()
+		{
+			return await _context.Kullanicilar.AsNoTracking().ToListAsync();
+		}
+
 		public async Task<Kullanici?> ProfilGetirAsync(Guid kullaniciId)
 		{
-			return await _context.Kullanicilar
+			Console.WriteLine($"ProfilGetirAsync çağrıldı, KullaniciId: {kullaniciId}");
+			var kullanici = await _context.Kullanicilar
 				.AsNoTracking()
 				.FirstOrDefaultAsync(k => k.Id == kullaniciId);
+			if (kullanici == null)
+			{
+				Console.WriteLine($"Kullanıcı bulunamadı, ID: {kullaniciId}");
+			}
+			return kullanici;
 		}
 
 		public async Task<Kullanici> KayitOl(KullaniciKayitDto kayitDto)
@@ -68,26 +79,32 @@ namespace KiralamaAPI.Service
 				return null;
 			}
 
-			var hashliSifre = HashSifre(kayitDto.Sifre);
-			Console.WriteLine($"Giriş denemesi: Eposta={kayitDto.Eposta}, HashliSifre={hashliSifre}");
-
 			var kullanici = await _context.Kullanicilar
 				.AsNoTracking()
-				.FirstOrDefaultAsync(k =>
-					k.Eposta == kayitDto.Eposta &&
-					k.SifreHash == hashliSifre
-				);
+				.FirstOrDefaultAsync(k => k.Eposta == kayitDto.Eposta);
 
 			if (kullanici == null)
 			{
 				Console.WriteLine($"Kullanıcı bulunamadı: Eposta={kayitDto.Eposta}");
-			}
-			else
-			{
-				Console.WriteLine($"Kullanıcı bulundu: ID={kullanici.Id}, Rol={kullanici.Rol}");
+				return null;
 			}
 
+			var hashToVerify = HashSifre(kayitDto.Sifre);
+			if (kullanici.SifreHash != hashToVerify)
+			{
+				Console.WriteLine($"Şifre yanlış: Eposta={kayitDto.Eposta}");
+				return null;
+			}
+
+			Console.WriteLine($"Kullanıcı bulundu: ID={kullanici.Id}, Rol={kullanici.Rol}");
 			return kullanici;
+		}
+
+
+		private bool VerifyPassword(string sifre, string storedHash)
+		{
+			var hashToVerify = HashSifre(sifre);
+			return hashToVerify == storedHash;
 		}
 
 		public async Task<Kullanici> Guncelle(Guid id, Kullanici guncelKullanici)

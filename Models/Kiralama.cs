@@ -19,6 +19,9 @@ namespace KiralamaAPI.Models
 
 		public decimal? Ucret { get; set; }
 
-		public string Durum { get; set; } // "Aktif" veya "Tamamlandı"
+		public string Durum { get; set; }
+
+		public double? BaslangicEnlem { get; set; }
+		public double? BaslangicBoylam { get; set; }
 	}
 }

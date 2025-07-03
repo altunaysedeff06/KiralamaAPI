@@ -4,6 +4,7 @@ using KiralamaAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,13 +12,15 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace KiralamaAPI.Migrations
 {
     [DbContext(typeof(KiralamaDbContext))]
-    partial class KiralamaDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250519002913_UpdateSaatlikUcretPrecision")]
+    partial class UpdateSaatlikUcretPrecision
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.10")
+                .HasAnnotation("ProductVersion", "9.0.3")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -34,10 +37,10 @@ namespace KiralamaAPI.Migrations
                     b.Property<bool>("Kilitli")
                         .HasColumnType("bit");
 
-                    b.Property<double?>("KonumBoylam")
+                    b.Property<double>("KonumBoylam")
                         .HasColumnType("float");
 
-                    b.Property<double?>("KonumEnlem")
+                    b.Property<double>("KonumEnlem")
                         .HasColumnType("float");
 
                     b.Property<string>("Model")
@@ -61,6 +64,9 @@ namespace KiralamaAPI.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
                     b.HasIndex("IsletmeId");
@@ -69,7 +75,33 @@ namespace KiralamaAPI.Migrations
                         .IsUnique()
                         .HasFilter("[PlakaNumarasi] IS NOT NULL");
 
+                    b.HasIndex("UserId");
+
                     b.ToTable("Araclar");
+                });
+
+            modelBuilder.Entity("KiralamaAPI.Models.Bildirim", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("DateSent")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Bildirimler");
                 });
 
             modelBuilder.Entity("KiralamaAPI.Models.Isletme", b =>
@@ -118,12 +150,6 @@ namespace KiralamaAPI.Migrations
 
                     b.Property<Guid>("AracId")
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<double?>("BaslangicBoylam")
-                        .HasColumnType("float");
-
-                    b.Property<double?>("BaslangicEnlem")
-                        .HasColumnType("float");
 
                     b.Property<DateTime>("BaslangicTarihi")
                         .HasColumnType("datetime2");
@@ -196,7 +222,14 @@ namespace KiralamaAPI.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("KiralamaAPI.Models.Kullanici", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Isletme");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("KiralamaAPI.Models.Kiralama", b =>

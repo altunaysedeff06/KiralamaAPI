@@ -14,7 +14,7 @@ namespace KiralamaAPI.Data
 		public DbSet<Isletme> Isletmeler { get; set; }
 		public DbSet<Arac> Araclar { get; set; }
 		public DbSet<Kiralama> Kiralamalar { get; set; }
-		public DbSet<Bildirim> Bildirimler { get; set; }
+		
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
@@ -53,6 +53,11 @@ namespace KiralamaAPI.Data
 				.HasForeignKey(k => k.KullaniciId)
 				.OnDelete(DeleteBehavior.Cascade);
 
+			modelBuilder.Entity<Kiralama>()
+				.Property(k => k.Ucret)
+				.HasColumnType("decimal(18, 2)") 
+				.HasPrecision(18, 2);
+
 			// Araç - Kiralama ilişkisi (1 Araç, birden fazla kiralama kaydına sahip olabilir)
 			modelBuilder.Entity<Kiralama>()
 				.HasOne(k => k.Arac)
@@ -66,6 +71,10 @@ namespace KiralamaAPI.Data
 				.WithMany()
 				.HasForeignKey(a => a.IsletmeId)
 				.OnDelete(DeleteBehavior.Cascade);
+
+			modelBuilder.Entity<Arac>()
+				.Property(a => a.SaatlikUcret)
+				.HasPrecision(18, 2);
 		}
 	}
 }

@@ -21,5 +21,6 @@ namespace KiralamaAPI.Models
 
 		public DateTime KayitTarihi { get; set; } = DateTime.UtcNow;
 		public string Rol { get; set; }
+
 	}
 }

@@ -4,6 +4,7 @@ using KiralamaAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace KiralamaAPI.Migrations
 {
     [DbContext(typeof(KiralamaDbContext))]
-    partial class KiralamaDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250606120953_AddBakiyeToKullanici")]
+    partial class AddBakiyeToKullanici
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -72,6 +75,30 @@ namespace KiralamaAPI.Migrations
                     b.ToTable("Araclar");
                 });
 
+            modelBuilder.Entity("KiralamaAPI.Models.Bildirim", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("DateSent")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Bildirimler");
+                });
+
             modelBuilder.Entity("KiralamaAPI.Models.Isletme", b =>
                 {
                     b.Property<Guid>("Id")
@@ -119,12 +146,6 @@ namespace KiralamaAPI.Migrations
                     b.Property<Guid>("AracId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<double?>("BaslangicBoylam")
-                        .HasColumnType("float");
-
-                    b.Property<double?>("BaslangicEnlem")
-                        .HasColumnType("float");
-
                     b.Property<DateTime>("BaslangicTarihi")
                         .HasColumnType("datetime2");
 
@@ -160,6 +181,9 @@ namespace KiralamaAPI.Migrations
                     b.Property<string>("Ad")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("Bakiye")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Eposta")
                         .IsRequired()

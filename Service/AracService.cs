@@ -1,10 +1,10 @@
 ﻿using KiralamaAPI.Data;
 using KiralamaAPI.Models;
-using Microsoft.EntityFrameworkCore; // Bunu mutlaka ekle
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Threading.Tasks;
-
 
 namespace KiralamaAPI.Service
 {
@@ -17,10 +17,65 @@ namespace KiralamaAPI.Service
 			_context = context;
 		}
 
+		public async Task<Arac> AracEkle(AracEkleDto dto, Guid isletmeId)
+		{
+			Console.WriteLine($"AracEkle çağrıldı - dto: {JsonSerializer.Serialize(dto)}, isletmeId: {isletmeId}");
+
+			var plakaMevcut = await _context.Araclar.AnyAsync(a => a.PlakaNumarasi == dto.PlakaNumarasi);
+			Console.WriteLine($"PlakaMevcut: {plakaMevcut}");
+			if (plakaMevcut)
+				throw new InvalidOperationException("Bu plaka numarasına sahip bir araç zaten mevcut.");
+
+			var isletmeMevcut = await _context.Isletmeler.AnyAsync(i => i.Id == isletmeId);
+			Console.WriteLine($"IsletmeMevcut: {isletmeMevcut}");
+			if (!isletmeMevcut)
+				throw new InvalidOperationException("Belirtilen işletme bulunamadı.");
+
+			Console.WriteLine($"SaatlikUcret Kontrolü: {dto.SaatlikUcret}");
+			if (dto.SaatlikUcret <= 0)
+				throw new InvalidOperationException("Saatlik ücret pozitif bir değer olmalıdır.");
+
+			Console.WriteLine($"KonumEnlem: {dto.KonumEnlem}, KonumBoylam: {dto.KonumBoylam}");
+			if (dto.KonumEnlem.HasValue && (dto.KonumEnlem < -90 || dto.KonumEnlem > 90))
+				throw new InvalidOperationException("Geçersiz enlem değeri (-90 ile 90 arasında olmalı).");
+
+			if (dto.KonumBoylam.HasValue && (dto.KonumBoylam < -180 || dto.KonumBoylam > 180))
+				throw new InvalidOperationException("Geçersiz boylam değeri (-180 ile 180 arasında olmalı).");
+
+			var yeniArac = new Arac
+			{
+				Id = Guid.NewGuid(),
+				PlakaNumarasi = dto.PlakaNumarasi,
+				Model = dto.Model,
+				Tip = dto.Tip,
+				SaatlikUcret = dto.SaatlikUcret,
+				KonumEnlem = dto.KonumEnlem,
+				KonumBoylam = dto.KonumBoylam,
+				MusaitMi = true,
+				Kilitli = true,
+				IsletmeId = isletmeId
+			};
+			Console.WriteLine($"Yeni Araç Oluşturuldu: {JsonSerializer.Serialize(yeniArac)}");
+
+			try
+			{
+				_context.Araclar.Add(yeniArac);
+				Console.WriteLine("Veritabanına araç eklendi, SaveChangesAsync çağrılıyor...");
+				await _context.SaveChangesAsync();
+				Console.WriteLine("Araç başarıyla kaydedildi.");
+				return yeniArac;
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"Hata: {ex.Message}\nInnerException: {ex.InnerException?.Message}\nStackTrace: {ex.StackTrace}");
+				throw new InvalidOperationException($"Araç eklenemedi: {ex.Message}");
+			}
+		}
+
+		
 		public async Task<Arac> AracGetir(Guid aracId)
 		{
 			var arac = await _context.Araclar
-				.Include(a => a.User)
 				.FirstOrDefaultAsync(a => a.Id == aracId);
 			return arac;
 		}
@@ -31,13 +86,13 @@ namespace KiralamaAPI.Service
 
 			if (arac == null)
 			{
-				return false; 
+				return false;
 			}
 
-			arac.Kilitle(); 
+			arac.Kilitle();
 			await _context.SaveChangesAsync();
 
-			return true; 
+			return true;
 		}
 
 		public async Task<bool> Ac(Guid aracId)
@@ -46,88 +101,113 @@ namespace KiralamaAPI.Service
 
 			if (arac == null)
 			{
-				return false; // Araç bulunamadı
+				return false;
 			}
 
-			arac.Ac(); // Bu metodu Arac sınıfında tanımladınız
+			arac.Ac();
 			await _context.SaveChangesAsync();
 
-			return true; // Araç başarıyla açıldı
+			return true;
 		}
 
-		public async Task<Arac> AracEkle(Arac arac)
-		{
-			var yeniArac = new Arac
-			{
-				Id = Guid.NewGuid(),
-				PlakaNumarasi = arac.PlakaNumarasi,
-				Model = arac.Model,
-				Tip = arac.Tip,
-				SaatlikUcret = arac.SaatlikUcret,
-				KonumEnlem = arac.KonumEnlem,
-				KonumBoylam = arac.KonumBoylam,
-				MusaitMi = arac.MusaitMi, // veya true olarak sabitlenebilir
-				Kilitli = arac.Kilitli,   // veya false olarak sabitlenebilir
-				IsletmeId = arac.IsletmeId,
-				UserId = arac.UserId
-			};
-
-			_context.Araclar.Add(yeniArac);
-			await _context.SaveChangesAsync();
-			return yeniArac;
-		}
-
-		public async Task<Arac> AracGuncelle(int id, Arac arac)
+		public async Task<Arac> AracGuncelle(Guid id, AracGuncelleDto dto)
 		{
 			var mevcutArac = await _context.Araclar.FindAsync(id);
 			if (mevcutArac == null)
 			{
+				Console.WriteLine($"Araç bulunamadı, ID: {id}");
 				return null;
 			}
-			mevcutArac.PlakaNumarasi = arac.PlakaNumarasi;
-			mevcutArac.Model = arac.Model;
-			mevcutArac.Tip = arac.Tip;
-			mevcutArac.SaatlikUcret = arac.SaatlikUcret;
-			mevcutArac.KonumEnlem = arac.KonumEnlem;
-			mevcutArac.KonumBoylam = arac.KonumBoylam;
-			mevcutArac.MusaitMi = arac.MusaitMi;
 
-			await _context.SaveChangesAsync();
-			return mevcutArac;
+			if (dto.SaatlikUcret <= 0)
+				throw new InvalidOperationException("Saatlik ücret pozitif bir değer olmalıdır.");
+
+			if (dto.KonumEnlem.HasValue && (dto.KonumEnlem < -90 || dto.KonumEnlem > 90))
+				throw new InvalidOperationException("Geçersiz enlem değeri (-90 ile 90 arasında olmalı).");
+
+			if (dto.KonumBoylam.HasValue && (dto.KonumBoylam < -180 || dto.KonumBoylam > 180))
+				throw new InvalidOperationException("Geçersiz boylam değeri (-180 ile 180 arasında olmalı).");
+
+			// Mevcut aracı güncelle
+			mevcutArac.PlakaNumarasi = dto.PlakaNumarasi;
+			mevcutArac.Model = dto.Model;
+			mevcutArac.Tip = dto.Tip;
+			mevcutArac.SaatlikUcret = dto.SaatlikUcret;
+			mevcutArac.KonumEnlem = dto.KonumEnlem;
+			mevcutArac.KonumBoylam = dto.KonumBoylam;
+			mevcutArac.MusaitMi = dto.MusaitMi;
+
+			try
+			{
+				await _context.SaveChangesAsync();
+				Console.WriteLine($"Araç başarıyla güncellendi, ID: {id}");
+				return mevcutArac;
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"Hata: {ex.Message}\nInnerException: {ex.InnerException?.Message}\nStackTrace: {ex.StackTrace}");
+				throw new InvalidOperationException($"Araç güncellenemedi: {ex.Message}");
+			}
 		}
 
-		public async Task<Arac> AracSil(int id)
+		public async Task<Arac> AracSil(Guid id)
 		{
 			var arac = await _context.Araclar.FindAsync(id);
-			if (arac == null) return null;
+			if (arac == null)
+			{
+				Console.WriteLine($"Araç bulunamadı, ID: {id}");
+				return null;
+			}
 
-			_context.Araclar.Remove(arac);
-			await _context.SaveChangesAsync();
-			return arac;
+			// Kiralama kontrolü
+			var kiralamaVar = await _context.Kiralamalar.AnyAsync(k => k.AracId == id && k.Durum == "Aktif");
+			if (kiralamaVar)
+			{
+				Console.WriteLine($"Araç silinemedi: Araç aktif bir kiralamada, ID: {id}");
+				throw new InvalidOperationException("Araç aktif bir kiralamada olduğu için silinemez.");
+			}
+
+			try
+			{
+				_context.Araclar.Remove(arac);
+				Console.WriteLine($"Araç veritabanından silindi, ID: {id}");
+				await _context.SaveChangesAsync();
+				Console.WriteLine($"Veritabanı değişikliği kaydedildi, ID: {id}");
+				return arac;
+			}
+			catch (DbUpdateException ex)
+			{
+				Console.WriteLine($"Veritabanı Hatası: {ex.Message}\nInnerException: {ex.InnerException?.Message}\nStackTrace: {ex.StackTrace}");
+				throw new InvalidOperationException($"Araç silinemedi: {ex.InnerException?.Message}");
+			}
 		}
 
-		public async Task<List<Arac>> AraclariListele()
+		public async Task<List<Arac>> AraclariListele(Guid isletmeId)
 		{
-			return await _context.Araclar.ToListAsync();
+			return await _context.Araclar
+				.Include(a => a.Isletme)
+				.Where(a => a.IsletmeId == isletmeId)
+				.ToListAsync();
 		}
 
-
-		//KONUM İŞLEMLERİ
 		public async Task<List<Arac>> GetNearbyAraclar(double enlem, double boylam, double mesafeKm)
 		{
-			// Asenkron veri çekme işlemi (örneğin, veritabanı sorgusu)
-			var araclar = await _context.Araclar
-				.Where(a => GetDistanceInKm(enlem, boylam, a.KonumEnlem, a.KonumBoylam) <= mesafeKm)
+			double dereceFarkiEnlem = mesafeKm / 111.0;
+			double dereceFarkiBoylam = mesafeKm / (111.0 * Math.Cos(ToRadians(enlem)));
+			var yakinAraclar = await _context.Araclar
+				.Where(a => a.KonumEnlem.HasValue && a.KonumBoylam.HasValue &&
+							a.KonumEnlem >= enlem - dereceFarkiEnlem && a.KonumEnlem <= enlem + dereceFarkiEnlem &&
+							a.KonumBoylam >= boylam - dereceFarkiBoylam && a.KonumBoylam <= boylam + dereceFarkiBoylam)
 				.ToListAsync();
 
-			return araclar;
+			return yakinAraclar
+				.Where(a => GetDistanceInKm(enlem, boylam, a.KonumEnlem.Value, a.KonumBoylam.Value) <= mesafeKm)
+				.ToList();
 		}
 
-
-		// Haversine formülü ile iki koordinat arasındaki mesafeyi hesaplama
 		private double GetDistanceInKm(double lat1, double lon1, double lat2, double lon2)
 		{
-			var R = 6371; // Dünya yarıçapı (km)
+			var R = 6371;
 			var dLat = ToRadians(lat2 - lat1);
 			var dLon = ToRadians(lon2 - lon1);
 			var a =
@@ -139,10 +219,31 @@ namespace KiralamaAPI.Service
 			return distance;
 		}
 
+		public async Task<bool> KiralamaBitir(Guid aracId)
+		{
+			var arac = await _context.Araclar.FirstOrDefaultAsync(a => a.Id == aracId);
+			if (arac == null)
+			{
+				return false;
+			}
+
+			arac.MusaitMi = true; // Aracı müsait hale getir
+			try
+			{
+				await _context.SaveChangesAsync();
+				Console.WriteLine($"Araç müsait hale getirildi, ID: {aracId}");
+				return true;
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"Hata: {ex.Message}\nStackTrace: {ex.StackTrace}");
+				throw new InvalidOperationException($"Araç durumu güncellenemedi: {ex.Message}");
+			}
+		}
+
 		private double ToRadians(double deg)
 		{
 			return deg * (Math.PI / 180);
 		}
-
 	}
 }

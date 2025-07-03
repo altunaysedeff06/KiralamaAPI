@@ -4,6 +4,7 @@ using KiralamaAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace KiralamaAPI.Migrations
 {
     [DbContext(typeof(KiralamaDbContext))]
-    partial class KiralamaDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250606164131_AddBaslangicKonumToKiralama")]
+    partial class AddBaslangicKonumToKiralama
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -70,6 +73,30 @@ namespace KiralamaAPI.Migrations
                         .HasFilter("[PlakaNumarasi] IS NOT NULL");
 
                     b.ToTable("Araclar");
+                });
+
+            modelBuilder.Entity("KiralamaAPI.Models.Bildirim", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("DateSent")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Bildirimler");
                 });
 
             modelBuilder.Entity("KiralamaAPI.Models.Isletme", b =>

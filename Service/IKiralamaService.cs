@@ -8,5 +8,10 @@ namespace KiralamaAPI.Service
 		Task<Kiralama?> KiralamaGetir(Guid id);
 		Task<List<Kiralama>> KullaniciKiralamaGecmisi(Guid kullaniciId);
 		Task<bool> KiralamaDurumGuncelle(Guid kiralamaId, string yeniDurum);
+
+		Task<Kiralama?> KiralamaGetirByAracId(Guid aracId);
+
+
+			Task<bool> KiralamaBitir(Guid kiralamaId);
 	}
 }
